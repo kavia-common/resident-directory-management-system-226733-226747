@@ -133,6 +133,20 @@ EOF
 echo "psql postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}" > db_connection.txt
 echo "Connection string saved to db_connection.txt"
 
+# Repeatable init/migration + seed
+# Runs idempotently on every startup. Keep it lightweight and safe to re-run.
+if [ -f "init_schema_and_seed.sql" ]; then
+    echo "Applying repeatable schema/migrations + seed..."
+    # Use appuser (ensures permissions are correct for application usage)
+    PGPASSWORD="${DB_PASSWORD}" ${PG_BIN}/psql \
+        -h localhost -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} \
+        -v ON_ERROR_STOP=1 \
+        -f "init_schema_and_seed.sql"
+    echo "✓ Schema/migrations + seed applied"
+else
+    echo "⚠ init_schema_and_seed.sql not found; skipping schema initialization"
+fi
+
 # Save environment variables to a file
 cat > db_visualizer/postgres.env << EOF
 export POSTGRES_URL="postgresql://localhost:${DB_PORT}/${DB_NAME}"
